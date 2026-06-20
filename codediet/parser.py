@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 import tree_sitter_python as tspython
-from tree_sitter import Language, Node, Parser
+from tree_sitter import Language, Parser
 
 # Build the Python language object once at module import time.
 PY_LANGUAGE = Language(tspython.language())

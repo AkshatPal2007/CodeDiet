@@ -8,6 +8,17 @@ import json
 import os
 
 
+# ---------------------------------------------------------------------------
+# Stubs — stand-ins for external functions that would exist in a real codebase.
+# These make the file importable/lintable without needing actual implementations.
+# ---------------------------------------------------------------------------
+def transform(x):  # noqa: ANN201
+    return x
+
+
+def check(x):  # noqa: ANN201
+    return x
+
 # Real function — does actual work
 def load_config(path):
     with open(path) as f:

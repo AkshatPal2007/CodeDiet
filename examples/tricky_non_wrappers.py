@@ -4,6 +4,17 @@ None of these should be detected by `codediet doctor`.
 """
 
 
+# ---------------------------------------------------------------------------
+# Stubs — stand-ins for external functions that would exist in a real codebase.
+# ---------------------------------------------------------------------------
+def helper(x, **kwargs):  # noqa: ANN001,ANN201
+    return x
+
+
+def compute(a, b):  # noqa: ANN001,ANN201
+    return a
+
+
 def parse_float_safe(x):
     """This looks like a wrapper but has a guard."""
     if x is None:

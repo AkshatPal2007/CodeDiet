@@ -17,8 +17,6 @@ are not. See CLAUDE.md §6 for the full rationale.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from tree_sitter import Node
 
 from codediet.models import Finding
