@@ -11,3 +11,7 @@ wheels/
 
 # Real-repo validation scratch directory (not for committing)
 _validation/
+
+# Scratch scripts
+scratch.py
+scratch/

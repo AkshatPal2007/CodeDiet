@@ -2,15 +2,16 @@
 
 **Put AI-generated code on a diet.**
 
-CodeDiet is a read-only static analysis CLI that detects unnecessary structural
-bloat caused by AI coding assistants (Cursor, Claude Code, Copilot, Windsurf,
+CodeDiet is a read-only static analysis CLI that detects structural bloat
+introduced by AI coding assistants (Cursor, Claude Code, Copilot, Windsurf,
 ChatGPT). It answers one question: *"does this code exist but probably not
 need to?"*
 
 It does not look for bugs, security issues, style violations, performance
 problems, or dead code. Other tools already do those well (Ruff, Pylint,
-Vulture, Semgrep). CodeDiet's niche is structural bloat that is syntactically
-valid, passes tests, and is invisible in normal code review.
+Vulture, Semgrep). CodeDiet's territory is narrower and currently underserved:
+structural bloat that is syntactically valid, passes every test, and is
+invisible in a normal code review.
 
 ## Why This Exists
 
@@ -21,33 +22,58 @@ refactored/moved code volume. The "path of least resistance" for an LLM is
 additive, not corrective: it layers new wrapper/helper functions over existing
 logic rather than reorganizing it.
 
-The specific anti-pattern CodeDiet targets — a function that does nothing but
-forward a call — is a long-recognized code smell ("Middle Man"). LLMs simply
-produce it at much higher volume because they operate on localized prompts
-without awareness of existing utilities elsewhere in the codebase.
+Duplicate helpers, abandoned `_v2`/`_final` implementations, sprawling
+`utils.py` files, pass-through wrapper functions — these don't break tests,
+pass code review, and accumulate silently until the codebase becomes
+genuinely hard to navigate.
 
-## What It Detects (v0.1)
+## What It Detects
 
-**Wrapper Functions** — functions whose entire body is a single pass-through
-call to another function, forwarding arguments unchanged with no added logic:
+CodeDiet separates findings into two categories — the distinction matters and
+is always visible in output:
+
+- **Facts** — mechanically verifiable structural claims. True by construction;
+  no interpretation required.
+- **Review Recommendations** — heuristic signals worth a human look, with no
+  claim about what inspection will find.
+
+### Shipped (v0.2)
+
+**Wrapper Functions** *(Fact)* — functions whose entire body is a single
+pass-through call to another function, forwarding arguments unchanged with no
+added logic:
 
 ```python
-# These are wrappers — CodeDiet will flag them
+# These are wrappers — CodeDiet will flag them as Facts
 def parse_float(x):
     return float(x)
 
-def process_number(x):
-    return helper(x)
+def file_exists(path):
+    return os.path.exists(path)
 ```
 
 Detection is deterministic and mechanical — no AI, no heuristics, no
-probabilistic scoring. Every finding is a structural fact derived from the AST.
+probabilistic scoring. Every fact-class finding is reproducible from the AST.
+
+### Roadmap (documented, not yet implemented)
+
+- **Duplicate Helper Detection** *(Review)* — functions with similar names,
+  signatures, and structure, often the AI equivalent of reinventing the same
+  helper under three names.
+- **Abandoned Implementation Detection** *(Review)* — `search_v2`, `search_new`,
+  `search_final` left behind after iterative prompting.
+- **Similar Module Detection** *(Review)* — files with unusually high structural
+  overlap.
+- **Utility Explosion Detection** *(Review)* — projects accumulating an
+  unusually large number of `helpers.py`, `utils.py`, `common.py` files.
+
+Roadmap detectors are fully specified and designed — not placeholders — but
+not yet implemented. The README will be updated as each ships.
 
 ## Installation
 
-Requires Python 3.13+.
+Requires Python 3.12+.
 
-Install via `pip`:
 ```bash
 pip install codediet
 ```
@@ -66,9 +92,8 @@ uv sync
 
 ## Usage
 
-### Command Line Interface
+### Command Line
 
-If installed globally or via pip:
 ```bash
 # Scan a directory
 codediet .
@@ -80,61 +105,84 @@ codediet path/to/file.py
 codediet . --json
 ```
 
-If running from the source tree with `uv`:
-```bash
-uv run codediet .
-```
-
-### Programmatic Library API
-
-CodeDiet can also be imported and run directly inside other Python codebases:
-
-```python
-from codediet import scan
-
-# Scan a project folder or a single file
-findings = scan("/path/to/other/project")
-
-# Process the findings programmatically
-for finding in findings:
-    print(f"[{finding.kind.upper()}] {finding.file}:{finding.line}")
-    print(f"  {finding.function} -> {finding.target}")
-```
-
-
 ### Text Output
 
 ```
 Files scanned: 42
 
-Wrapper Functions Found: 3
+FACTS — Mechanically Verifiable (3 found)
 
-WRAPPER
-  utils.py:18
-  parse_float -> float
+  [WRAPPER]
+    utils.py:18
+    parse_float -> float
 
-WRAPPER
-  helpers.py:44
-  process_number -> helper
+  [WRAPPER]
+    helpers.py:44
+    file_exists -> os.path.exists
+
+  [WRAPPER]
+    client.py:91
+    send -> self._http.post
+
+REVIEW RECOMMENDATIONS — Heuristic Signals (0 found)
+  (none)
 ```
 
 ### JSON Output
 
 ```json
 {
-  "wrappers": [
+  "facts": [
     {
+      "detector": "wrapper",
       "file": "utils.py",
       "line": 18,
-      "function": "parse_float",
-      "target": "float"
+      "message": "parse_float -> float",
+      "evidence": {
+        "function": "parse_float",
+        "target": "float"
+      }
     }
-  ]
+  ],
+  "review_recommendations": []
 }
 ```
 
 No scores. No percentages. No rankings. No suggestions. CodeDiet reports
 observations, never judgments — the developer decides what to do.
+
+### Programmatic Library API
+
+CodeDiet can be imported and used directly inside other Python codebases:
+
+```python
+from codediet import scan, Finding
+from codediet.models import FindingClass
+
+# Scan a project folder or a single file
+findings = scan("/path/to/other/project")
+
+# Separate facts from review recommendations
+facts = [f for f in findings if f.classification == FindingClass.FACT]
+reviews = [f for f in findings if f.classification == FindingClass.REVIEW]
+
+# Inspect a finding
+for f in facts:
+    print(f"[{f.detector.upper()}] {f.file}:{f.line}")
+    print(f"  {f.message}")
+    print(f"  evidence: {f.evidence}")
+```
+
+The `Finding` dataclass fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `detector` | `str` | Detector name, e.g. `"wrapper"` |
+| `classification` | `FindingClass` | `FACT` or `REVIEW` |
+| `file` | `str` | Relative file path |
+| `line` | `int` | Line number |
+| `message` | `str` | Human-readable summary |
+| `evidence` | `dict` | Structured, detector-specific data |
 
 ## Design Principles
 
@@ -144,6 +192,9 @@ observations, never judgments — the developer decides what to do.
   isn't one.
 - **Deterministic.** No LLMs, no embeddings, no AI scoring. Every finding is
   mechanically reproducible from the AST.
+- **Honest about uncertainty.** The Fact/Review distinction is a user-facing
+  contract, not an internal note. Users can always tell whether a finding is a
+  structural certainty or a "go look at this."
 - **Read-only.** CodeDiet never modifies source code, never generates fixes,
   never suggests deletions.
 - **No composite scores.** No "Bloat Score: 57" — that's exactly the kind of
@@ -157,6 +208,9 @@ uv run pytest tests/ -v
 
 # Lint
 uv run ruff check .
+
+# Build
+uv build
 ```
 
 ## License
