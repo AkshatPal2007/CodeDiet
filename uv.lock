@@ -14,7 +14,7 @@ wheels = [
 [[package]]
 name = "codediet"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "tree-sitter" },
     { name = "tree-sitter-python" },
