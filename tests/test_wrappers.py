@@ -9,6 +9,7 @@ import tree_sitter_python as tspython
 from tree_sitter import Language, Parser
 
 from codediet.detectors.wrappers import detect
+from codediet.models import FindingClass
 
 PY_LANGUAGE = Language(tspython.language())
 parser = Parser(PY_LANGUAGE)
@@ -35,9 +36,10 @@ def parse_float(x):
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].function == "parse_float"
-        assert findings[0].target == "float"
-        assert findings[0].kind == "wrapper"
+        assert findings[0].evidence["function"] == "parse_float"
+        assert findings[0].evidence["target"] == "float"
+        assert findings[0].detector == "wrapper"
+        assert findings[0].classification == FindingClass.FACT
 
     def test_function_wrapper(self):
         code = """
@@ -46,8 +48,8 @@ def process_number(x):
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].function == "process_number"
-        assert findings[0].target == "helper"
+        assert findings[0].evidence["function"] == "process_number"
+        assert findings[0].evidence["target"] == "helper"
 
     def test_multi_arg_wrapper(self):
         code = """
@@ -56,8 +58,8 @@ def add(a, b):
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].function == "add"
-        assert findings[0].target == "math_add"
+        assert findings[0].evidence["function"] == "add"
+        assert findings[0].evidence["target"] == "math_add"
 
 
 class TestPositiveAttributeTargets:
@@ -70,7 +72,7 @@ def floor_it(x):
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].target == "math.floor"
+        assert findings[0].evidence["target"] == "math.floor"
 
     def test_deep_attribute(self):
         code = """
@@ -79,7 +81,7 @@ def get_value(key):
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].target == "self.config.store.get"
+        assert findings[0].evidence["target"] == "self.config.store.get"
 
 
 class TestPositiveZeroArgWrappers:
@@ -92,8 +94,8 @@ def do_something():
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].function == "do_something"
-        assert findings[0].target == "helper"
+        assert findings[0].evidence["function"] == "do_something"
+        assert findings[0].evidence["target"] == "helper"
 
     def test_no_args_builtin(self):
         code = """
@@ -139,7 +141,7 @@ def format(self, *args, **kwargs):
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].target == "Formatter.format"
+        assert findings[0].evidence["target"] == "Formatter.format"
 
 
 class TestPositiveMethodWrappers:
@@ -200,7 +202,7 @@ def parse_float(x: str):
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].function == "parse_float"
+        assert findings[0].evidence["function"] == "parse_float"
 
     def test_return_type_annotation(self):
         code = """
@@ -224,7 +226,7 @@ def parse_int(x):
 """
         findings = run_detect(code)
         assert len(findings) == 2
-        funcs = {f.function for f in findings}
+        funcs = {f.evidence["function"] for f in findings}
         assert funcs == {"parse_float", "parse_int"}
 
 
@@ -240,7 +242,7 @@ def outer():
 """
         findings = run_detect(code)
         assert len(findings) == 1
-        assert findings[0].function == "inner"
+        assert findings[0].evidence["function"] == "inner"
 
 
 class TestPositiveLineNumbers:

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from tree_sitter import Node
 
-from codediet.models import Finding
+from codediet.models import Finding, FindingClass
 
 
 def detect(tree: object, source: bytes, filepath: str) -> list[Finding]:
@@ -99,11 +99,12 @@ def _check_function(node: Node, source: bytes, filepath: str) -> Finding | None:
         return None
 
     return Finding(
-        kind="wrapper",
+        detector="wrapper",
+        classification=FindingClass.FACT,
         file=filepath,
         line=node.start_point[0] + 1,  # tree-sitter rows are 0-indexed
-        function=func_name,
-        target=target_name,
+        message=f"{func_name} -> {target_name}",
+        evidence={"function": func_name, "target": target_name},
     )
 
 

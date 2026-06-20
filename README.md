@@ -47,25 +47,60 @@ probabilistic scoring. Every finding is a structural fact derived from the AST.
 
 Requires Python 3.13+.
 
+Install via `pip`:
 ```bash
-# Clone and install
-git clone https://github.com/your-org/codediet.git
-cd codediet
+pip install codediet
+```
+
+Or install globally as a command-line tool via `uv`:
+```bash
+uv tool install codediet
+```
+
+### Developing from Source
+```bash
+git clone https://github.com/AkshatPal2007/CodeDiet.git
+cd CodeDiet
 uv sync
 ```
 
 ## Usage
 
+### Command Line Interface
+
+If installed globally or via pip:
 ```bash
 # Scan a directory
-uv run codediet .
+codediet .
 
 # Scan a specific file
-uv run codediet path/to/file.py
+codediet path/to/file.py
 
 # JSON output
-uv run codediet . --json
+codediet . --json
 ```
+
+If running from the source tree with `uv`:
+```bash
+uv run codediet .
+```
+
+### Programmatic Library API
+
+CodeDiet can also be imported and run directly inside other Python codebases:
+
+```python
+from codediet import scan
+
+# Scan a project folder or a single file
+findings = scan("/path/to/other/project")
+
+# Process the findings programmatically
+for finding in findings:
+    print(f"[{finding.kind.upper()}] {finding.file}:{finding.line}")
+    print(f"  {finding.function} -> {finding.target}")
+```
+
 
 ### Text Output
 

@@ -1,4 +1,4 @@
-"""Tests for the CLI entrypoint."""
+"""Tests for the CLI entrypoint (v0.2)."""
 
 import json
 from pathlib import Path
@@ -21,7 +21,8 @@ def test_doctor_on_examples_text_output():
     result = runner.invoke(app, [_EXAMPLES_DIR])
     assert result.exit_code == 0, result.output
     assert "Files scanned:" in result.output
-    assert "Wrapper Functions Found:" in result.output
+    assert "FACTS" in result.output
+    assert "REVIEW RECOMMENDATIONS" in result.output
 
 
 def test_doctor_on_examples_json_output():
@@ -29,10 +30,12 @@ def test_doctor_on_examples_json_output():
     result = runner.invoke(app, [_EXAMPLES_DIR, "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
-    assert "wrappers" in data
-    assert isinstance(data["wrappers"], list)
-    # The obvious_wrappers.py example should produce findings
-    assert len(data["wrappers"]) > 0
+    assert "facts" in data
+    assert "review_recommendations" in data
+    assert isinstance(data["facts"], list)
+    assert isinstance(data["review_recommendations"], list)
+    # The obvious_wrappers.py example should produce findings in facts
+    assert len(data["facts"]) > 0
 
 
 def test_doctor_on_single_file():
@@ -47,7 +50,8 @@ def test_doctor_no_findings_on_non_wrappers():
     result = runner.invoke(app, [_TRICKY, "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
-    assert len(data["wrappers"]) == 0
+    assert len(data["facts"]) == 0
+    assert len(data["review_recommendations"]) == 0
 
 
 def test_doctor_nonexistent_path():

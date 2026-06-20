@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Real-repo validation scratch directory (not for committing)
+_validation/
