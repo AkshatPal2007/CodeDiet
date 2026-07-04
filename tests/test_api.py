@@ -23,17 +23,22 @@ def test_api_exports():
 
 
 def test_scan_on_directory():
-    """Verify scan on a directory returns list of Finding."""
+    """Verify scan on a directory returns list of Finding from any detector."""
     findings = scan(_EXAMPLES_DIR)
     assert isinstance(findings, list)
     assert len(findings) > 0
     for finding in findings:
         assert isinstance(finding, Finding)
-        assert finding.detector == "wrapper"
-        assert finding.classification == FindingClass.FACT
+        assert isinstance(finding.detector, str)
         assert isinstance(finding.evidence, dict)
-        assert "function" in finding.evidence
-        assert "target" in finding.evidence
+
+    # Specifically verify wrapper findings are still present and correct.
+    wrapper_findings = [f for f in findings if f.detector == "wrapper"]
+    assert len(wrapper_findings) > 0
+    for f in wrapper_findings:
+        assert f.classification == FindingClass.FACT
+        assert "function" in f.evidence
+        assert "target" in f.evidence
 
 
 def test_scan_on_single_file_obvious():

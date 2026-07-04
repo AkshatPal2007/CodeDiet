@@ -1,12 +1,12 @@
 [project]
 name = "codediet"
-version = "0.3.1"
+version = "0.4.0"
 description = "Put AI-generated code on a diet. Detects structural bloat caused by AI coding assistants."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
-    { name = "Akshat Pal", email = "akshatpal2007@gmail.com" }
+    { name = "Akshat Pal", email = "akshatpc3456@gmail.com" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

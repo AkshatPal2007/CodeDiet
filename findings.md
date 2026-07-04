@@ -1,6 +1,6 @@
 # CodeDiet Findings — .
-Generated: 2026-06-21T06:17:44Z
-Detector(s) run: wrapper
+Generated: 2026-07-04T11:43:26Z
+Detector(s) run: abandoned_implementation, utility_explosion, wrapper
 
 ## Facts
 (deterministic — these are structurally true as written)
@@ -117,6 +117,15 @@ Detector(s) run: wrapper
 - `_validation/flask/tests/test_user_error_handler.py:289` — handle_exception -> self.report_error
 
 ### Wrapper
+- `examples/duplicate_helpers_examples.py:13` — safe_float -> float
+
+### Wrapper
+- `examples/duplicate_helpers_examples.py:17` — parse_float -> float
+
+### Wrapper
+- `examples/duplicate_helpers_examples.py:21` — ensure_float -> float
+
+### Wrapper
 - `examples/mixed_realistic.py:29` — file_exists -> os.path.exists
 
 ### Wrapper
@@ -143,13 +152,56 @@ Detector(s) run: wrapper
 ## Review Recommendations
 (heuristic signals — worth a look, not a claim about the outcome)
 
-_None in this run._
+### Abandoned Implementation
+- `examples/abandoned_examples.py:21` — search_v2 — Potentially Superseded Implementation
+
+### Abandoned Implementation
+- `examples/abandoned_examples.py:35` — parse_config_new — Potentially Superseded Implementation
+
+### Abandoned Implementation
+- `examples/abandoned_examples.py:49` — validate_email_final — Potentially Superseded Implementation
+
+### Abandoned Implementation
+- `examples/abandoned_examples.py:63` — format_date_old — Potentially Superseded Implementation
+
+### Abandoned Implementation
+- `examples/abandoned_examples.py:75` — send_notification_deprecated — Potentially Superseded Implementation
+
+### Utility Explosion
+- `_validation/fastapi/fastapi/_compat/shared.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/fastapi/dependencies/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/fastapi/openapi/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/fastapi/security/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/fastapi/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/tests/test_request_params/test_body/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/tests/test_request_params/test_file/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/tests/test_request_params/test_form/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/fastapi/tests/utils.py:1` — Project has 10 utility-named modules — Review Utility Growth
+
+### Utility Explosion
+- `_validation/flask/src/flask/helpers.py:1` — Project has 10 utility-named modules — Review Utility Growth
 
 ---
 ## Summary
-- 45 Facts
-- 0 Review Recommendations
-- 1232 files scanned
+- 48 Facts
+- 15 Review Recommendations
+- 1240 files scanned
 
 ---
 ## LLM Hand-off Prompt
@@ -201,6 +253,9 @@ FACTS (structurally confirmed — true as written, by construction):
 - _validation/flask/tests/test_json.py:41 — `return_json` is a pure pass-through wrapper around `flask.request.get_json`. Consider whether it can be inlined or removed.
 - _validation/flask/tests/test_json_tag.py:58 — `to_python` is a pure pass-through wrapper around `Foo`. Consider whether it can be inlined or removed.
 - _validation/flask/tests/test_user_error_handler.py:289 — `handle_exception` is a pure pass-through wrapper around `self.report_error`. Consider whether it can be inlined or removed.
+- examples/duplicate_helpers_examples.py:13 — `safe_float` is a pure pass-through wrapper around `float`. Consider whether it can be inlined or removed.
+- examples/duplicate_helpers_examples.py:17 — `parse_float` is a pure pass-through wrapper around `float`. Consider whether it can be inlined or removed.
+- examples/duplicate_helpers_examples.py:21 — `ensure_float` is a pure pass-through wrapper around `float`. Consider whether it can be inlined or removed.
 - examples/mixed_realistic.py:29 — `file_exists` is a pure pass-through wrapper around `os.path.exists`. Consider whether it can be inlined or removed.
 - examples/mixed_realistic.py:41 — `to_json` is a pure pass-through wrapper around `json.dumps`. Consider whether it can be inlined or removed.
 - examples/mixed_realistic.py:53 — `process` is a pure pass-through wrapper around `transform`. Consider whether it can be inlined or removed.
@@ -212,7 +267,21 @@ FACTS (structurally confirmed — true as written, by construction):
 
 REVIEW RECOMMENDATIONS (heuristic signals — investigate before acting,
 do not assume these are confirmed issues):
-(none in this run)
+- examples/abandoned_examples.py:21 — Potentially Superseded Implementation: search_v2 — Potentially Superseded Implementation. Please investigate whether this is intentional versioning or an accidentally retained earlier attempt.
+- examples/abandoned_examples.py:35 — Potentially Superseded Implementation: parse_config_new — Potentially Superseded Implementation. Please investigate whether this is intentional versioning or an accidentally retained earlier attempt.
+- examples/abandoned_examples.py:49 — Potentially Superseded Implementation: validate_email_final — Potentially Superseded Implementation. Please investigate whether this is intentional versioning or an accidentally retained earlier attempt.
+- examples/abandoned_examples.py:63 — Potentially Superseded Implementation: format_date_old — Potentially Superseded Implementation. Please investigate whether this is intentional versioning or an accidentally retained earlier attempt.
+- examples/abandoned_examples.py:75 — Potentially Superseded Implementation: send_notification_deprecated — Potentially Superseded Implementation. Please investigate whether this is intentional versioning or an accidentally retained earlier attempt.
+- _validation/fastapi/fastapi/_compat/shared.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/fastapi/dependencies/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/fastapi/openapi/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/fastapi/security/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/fastapi/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/tests/test_request_params/test_body/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/tests/test_request_params/test_file/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/tests/test_request_params/test_form/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/fastapi/tests/utils.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
+- _validation/flask/src/flask/helpers.py:1 — Review Utility Growth: Project has 10 utility-named modules — Review Utility Growth. This is a low-confidence project-level heuristic signal only.
 
 For FACTS, you may propose a direct fix (for example, inlining a pure
 pass-through wrapper) if it is appropriate for the context.

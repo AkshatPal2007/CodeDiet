@@ -77,9 +77,10 @@ def _render_markdown(
 ) -> list[str]:
     lines: list[str] = []
 
+    detector_names = _detector_list(facts + reviews)
     lines.append(f"# CodeDiet Findings — {repo_label}")
     lines.append(f"Generated: {timestamp}")
-    lines.append("Detector(s) run: wrapper")
+    lines.append(f"Detector(s) run: {detector_names}")
     lines.append("")
 
     # ── Facts section ─────────────────────────────────────────────────────────
@@ -149,9 +150,10 @@ def _render_text(
 ) -> list[str]:
     lines: list[str] = []
 
+    detector_names = _detector_list(facts + reviews)
     lines.append(f"CodeDiet Findings — {repo_label}")
     lines.append(f"Generated: {timestamp}")
-    lines.append("Detector(s) run: wrapper")
+    lines.append(f"Detector(s) run: {detector_names}")
     lines.append("")
 
     # ── Facts section ─────────────────────────────────────────────────────────
@@ -199,3 +201,21 @@ def _render_text(
         lines.append(prompt_text)
 
     return lines
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _detector_list(findings: "list[Finding]") -> str:
+    """Return a comma-separated, sorted list of unique detector names.
+
+    Falls back to 'wrapper' (the always-on base detector) when findings
+    is empty, so a clean-run export still records which detectors ran.
+    """
+
+    if not findings:
+        return "wrapper, abandoned_implementation, duplicate_helper, utility_explosion"
+    names = sorted({f.detector for f in findings})
+    return ", ".join(names)

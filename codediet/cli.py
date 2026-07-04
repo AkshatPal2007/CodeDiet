@@ -9,6 +9,7 @@ import typer
 
 from codediet.api import scan
 from codediet.exporter import export_findings
+from codediet.models import FindingClass
 from codediet.parser import walk_python_files
 from codediet.prompt_builder import build_prompt
 from codediet.reporter import report_json, report_text
@@ -57,6 +58,14 @@ def doctor(
             "Has no effect without --export."
         ),
     ),
+    error_on_facts: bool = typer.Option(
+        False,
+        "--error-on-facts",
+        help=(
+            "Exit with code 1 if any FACT-class findings are detected.  "
+            "Useful for failing CI pipelines on deterministic bloat."
+        ),
+    ),
 ) -> None:
     """Scan PATH for structural code bloat."""
     if path.is_file():
@@ -93,6 +102,12 @@ def doctor(
         typer.echo(
             "Warning: --prompt has no effect without --export.", err=True
         )
+
+    # ── Exit code ─────────────────────────────────────────────────────────────
+    if error_on_facts:
+        facts = [f for f in all_findings if f.classification == FindingClass.FACT]
+        if facts:
+            raise typer.Exit(code=1)
 
 
 def main() -> None:
