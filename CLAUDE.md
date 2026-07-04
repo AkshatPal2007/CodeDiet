@@ -1,108 +1,81 @@
-# CLAUDE.md — CodeDiet Project Guide (v0.2)
+# CLAUDE.md — CodeDiet Project Guide (v0.3)
 
-This file is the source of truth for working on CodeDiet. Read it fully before
-writing or modifying any code. This is a complete replacement of the v0.1
-guide, not a patch — the v0.1 document is preserved at
-`CLAUDE.v0.1.archive.md` for historical context, but it is no longer
-authoritative. If a request conflicts with this document, flag the conflict
-explicitly rather than silently resolving it in either direction.
+This file is the source of truth for working on CodeDiet. Read it fully
+before writing or modifying any code. This is a complete replacement of the
+v0.2 guide, not a patch — v0.2 is preserved at `CLAUDE.v0.2.archive.md` for
+history, but is no longer authoritative. If a request conflicts with this
+document, flag the conflict explicitly rather than silently resolving it in
+either direction.
+
+**What changed in v0.3, in one sentence:** no new detectors, no new
+languages, no new ambition — v0.3 makes the existing findings easier to
+*act on* by writing them to a shareable file and assembling a plain-text
+prompt the user can hand to their own coding LLM. Everything else from v0.2
+carries forward unchanged. See §0 for why this scope was chosen over the
+broader "think big" direction that was briefly considered and deliberately
+rejected.
 
 ---
 
-## 1. Mission
+## 0. Why v0.3 Is Scoped This Way
+
+Before this version was planned, a much bigger direction was on the table:
+new detectors, a second language, new platforms — "think big, catch a large
+number of users." That direction was deliberately rejected, not because
+ambition is bad, but because of a basic sequencing problem: v0.2 *documented*
+five new detectors and shipped *none* of them. Adding more ambition on top of
+an undelivered roadmap would have repeated the exact mistake the original
+project planning (the old MLForge 12-feature draft) was rejected for in the
+first place.
+
+So v0.3 deliberately does not add detectors, languages, or scoring. Instead
+it answers a narrower, real question: **the findings CodeDiet already
+produces are good, but they currently live only in a terminal scroll-back or
+a JSON blob — how does a developer actually *use* them?** Most developers
+working with AI coding assistants are going to act on findings by handing
+them back to that same assistant. v0.3 makes that handoff easy and exact,
+without CodeDiet ever touching an LLM itself.
+
+This is "user-friendly" growth, not "feature count" growth — it increases
+how usable the existing, validated detector is, rather than increasing how
+much CodeDiet claims to detect.
+
+---
+
+## 1. Mission (unchanged from v0.2)
 
 CodeDiet detects unnecessary code growth commonly introduced by AI-assisted
-development.
+development — duplicate code, abandoned implementations, helper/utility
+explosion, pass-through wrappers, and structurally similar modules. It does
+not look for bugs, security issues, style, or type errors.
 
-It does not look for bugs, security issues, style violations, formatting,
-linting, or type errors. Mature tools already do those well (Ruff, Pylint,
-Semgrep, mypy). CodeDiet's territory is narrower and currently underserved:
-structural bloat that is syntactically valid, passes every test, and is
-invisible in a normal code review.
-
-### What "bloat" means for this project
-
-CodeDiet looks for:
-- Duplicate code and duplicate helpers
-- Abandoned / superseded implementations left in place
-- Dead experiments
-- Utility/helper-module explosion
-- Pass-through wrapper functions
-- Structurally similar modules
-
-### Why v0.2 exists — the lesson from v0.1
-
-v0.1 shipped a single detector: pass-through wrapper functions (the "Middle
-Man" smell). It was validated and works as designed — high precision, low
-false positives, exactly as intended.
-
-Real-world testing surfaced a problem that has nothing to do with the
-detector's *quality* and everything to do with its *coverage*: pass-through
-wrappers are a relatively uncommon pattern in real AI-generated codebases.
-The detector was correct but the category was too narrow to carry a product.
-Most of what developers actually accumulate from AI-assisted development —
-duplicate helpers, abandoned `_v2`/`_final` implementations, sprawling
-`utils.py` files — wasn't being caught at all.
-
-This is why CodeDiet is repositioning from "wrapper detection tool" to "AI
-code bloat detection tool." Wrapper detection remains, fully intact, as the
-proof that this approach can be done with high precision. The rest of v0.2 is
-about extending the same precision discipline to the patterns that actually
-show up at volume.
+Tagline (unchanged): **"Put AI-generated code on a diet."**
 
 ---
 
-## 2. Philosophy
+## 2. Philosophy (unchanged, restated because it directly governs §5 below)
 
-Four properties matter, in this order, and the order is not negotiable:
+Four properties matter, in this order: **Trust, Precision, Explainability,
+Evidence** — over recall, fancy metrics, or marketing claims.
 
-1. **Trust**
-2. **Precision**
-3. **Explainability**
-4. **Evidence**
-
-These are prioritized over recall, over impressive-sounding metrics, and over
-marketing claims. A detector that finds fewer real issues but never cries
-wolf is more valuable to this project than a detector that finds everything
-but erodes confidence in the tool after the third false alarm.
-
-### Why this ordering, specifically
-
-Developer trust in static analysis tooling is asymmetric. A tool that is
-right is appreciated quietly. A tool that is wrong — even occasionally — gets
-uninstalled and is rarely given a second chance. There is no meaningful
-"we'll improve the false-positive rate in the next release" recovery path,
-because by the next release the user is already gone. This asymmetry is the
-single most important fact shaping every decision in this document.
-
-### The fact-vs-recommendation distinction
-
-This is the most important conceptual tool in the whole project. Every
-detector's output falls into exactly one of two categories, and the category
-must be obvious from the wording alone, not just from internal documentation:
-
-- **Fact.** A structural, mechanically verifiable claim about the code as
-  written. "This function's entire body is a single forwarding call." There
-  is no interpretation involved; the claim is true by construction.
-- **Review recommendation.** A heuristic signal that something is *worth a
-  human looking at*, with no claim about what the human will find. "These
-  three functions share a naming pattern and an overlapping signature" is
-  true regardless of whether the functions turn out to be meaningfully
-  different on inspection — the recommendation to review them is the entire
-  claim, not a prediction about the outcome.
-
-A detector is only allowed to phrase output as a fact if it would still be
-defensible as a fact in 100% of cases, including adversarial or unusual code.
-If a detector cannot meet that bar, its output must be phrased as a review
-recommendation, permanently — not as a stepping stone to "fact" status later.
-Some detectors in this document (see §5) are heuristic by nature and will
-never graduate to fact-level claims, no matter how good the implementation
-gets. That's fine. It's not every detector's job to be deterministic; it's
-every detector's job to be honest about whether it is.
+Every finding is either a **Fact** (deterministic, mechanically defensible,
+true by construction) or a **Review Recommendation** (a heuristic signal,
+explicitly not a claim about the outcome of inspection). This distinction is
+not just a CLI display detail — as of v0.3, it must also survive intact into
+every exported file and every generated LLM prompt. See §5.3. This is the
+part of v0.3 most likely to be gotten wrong by accident, so it gets repeated
+here deliberately.
 
 ---
 
-## 3. Product Positioning
+## 3. Product Positioning (unchanged from v0.2)
+
+CodeDiet remains:
+- Read-only, static analysis only
+- Deterministic where a finding is labeled Fact; explicitly heuristic where
+  labeled Review
+- Free of LLMs, embeddings, AI scoring, and any probabilistic/generative
+  component **inside CodeDiet itself**
 
 ### CodeDiet is NOT
 - An AI code reviewer
@@ -129,51 +102,88 @@ every detector's job to be honest about whether it is.
   of the code alone — same input, same output, every time, on any machine.
 - **Never produces a composite score.** No "Bloat Score," no "Maintainability
   Score," no percentage, no 0–100 risk number, no letter grade. This is
-  permanent, not a v0.2-specific restriction — see §6 for why this matters
-  architecturally, not just stylistically.
-- **Never takes autonomous action.** No agentic workflows, no auto-fixes, no
-  auto-refactoring, now or in any currently planned future version.
+  permanent.
+- **Never takes autonomous action.** No agentic workflows, no auto-fixes.
 
-Tagline (unchanged): **"Put AI-generated code on a diet."**
+### A clarification made necessary by v0.3's new feature
+
+v0.3 introduces a feature that *generates a prompt for the user's own LLM*.
+This does **not** weaken the "no LLM dependency" invariant, and the
+distinction must be preserved precisely in both code and documentation:
+
+- CodeDiet does not call any LLM API, locally or remotely, at any point.
+- CodeDiet does not use embeddings, completions, or any model inference to
+  produce findings, the exported file, or the prompt text.
+- The generated prompt is plain, deterministic, templated text — built
+  entirely from CodeDiet's own structured findings (§4's data model) —
+  that the *user* chooses to paste into whatever tool they already use
+  (Claude Code, Cursor, Copilot Chat, ChatGPT, etc.).
+- CodeDiet has no knowledge of, dependency on, or integration with any
+  specific LLM provider. The prompt is provider-agnostic by design — it must
+  read correctly whether pasted into Claude, GPT, Gemini, or anything else.
+
+If a future contributor proposes calling an LLM API directly from CodeDiet
+("just to make the prompt better" or "just to summarize findings"), that is
+a violation of a permanent invariant, not a minor implementation choice —
+treat it the same as a proposal to add a composite bloat score.
 
 ---
 
 ## 4. Architecture
 
-### Parser: tree-sitter
+### Parser: tree-sitter (NOT stdlib `ast`)
 
-Unchanged from v0.1. Tree-sitter was chosen over stdlib `ast` specifically so
-detection rules could eventually port to JS/TS/Go grammars with a fraction of
-the rewrite cost. That bet pays off more directly in v0.2: several of the new
-detectors (duplicate helpers, similar modules, utility explosion) are
-*structural pattern* checks that translate naturally across languages once
-the grammar exists. Do not reconsider stdlib `ast` — this has already been
-decided and re-confirmed once.
+Unchanged from v0.1 and v0.2. Tree-sitter was chosen over stdlib `ast`
+specifically so detection rules could eventually port to JS/TS/Go grammars
+with a fraction of the rewrite cost. Do not reconsider stdlib `ast` — this
+has already been decided and re-confirmed across multiple versions.
 
 Packages: `tree-sitter`, `tree-sitter-python`.
 
-### Repository structure (v0.2)
+### Repository structure (v0.3)
 
 ```text
 codediet/
 ├── codediet/
-│   ├── cli.py
-│   ├── parser.py
-│   ├── reporter.py
-│   ├── models.py
+│   ├── __init__.py          # Package root; exports scan and Finding
+│   ├── api.py               # Programmatic scan() API
+│   ├── cli.py               # Typer CLI — codediet doctor <path> [options]
+│   ├── parser.py            # tree-sitter setup, file walking, tree building
+│   ├── reporter.py          # Terminal text & JSON output (Facts / Reviews)
+│   ├── models.py            # FindingClass enum + Finding dataclass
+│   ├── exporter.py          # NEW (v0.3) — writes findings to .md / .txt
+│   ├── prompt_builder.py    # NEW (v0.3) — assembles LLM hand-off prompt
 │   └── detectors/
 │       ├── __init__.py
-│       ├── wrappers.py        # v0.1, shipped, unchanged in spirit
-│       └── (future detectors land here one at a time — see §7)
+│       └── wrappers.py      # Wrapper function detector (only shipped detector)
 │
 ├── tests/
+│   ├── test_api.py          # Programmatic API integration tests
+│   ├── test_cli.py          # CLI integration tests (text, JSON, --export, --prompt)
+│   ├── test_exporter.py     # NEW (v0.3) — exporter module tests
+│   ├── test_prompt_builder.py  # NEW (v0.3) — prompt safety invariant tests
+│   ├── test_reporter.py     # Reporter tests (FACTS / REVIEW RECOMMENDATIONS)
+│   └── test_wrappers.py     # 40+ detector tests (positive + near-miss negatives)
+│
 ├── examples/
+│   ├── obvious_wrappers.py  # 5 clear-cut wrappers (positive examples)
+│   ├── tricky_non_wrappers.py  # Near-misses that must NOT be flagged
+│   └── mixed_realistic.py   # Realistic mix for manual testing
+│
 ├── README.md
-├── CLAUDE.md
-├── CLAUDE.v0.1.archive.md
+├── CLAUDE.md                # ← this file (authoritative spec, v0.3)
+├── CLAUDE.v0.1.archive.md   # Historical reference only, not authoritative
+├── CLAUDE.v0.2.archive.md   # Historical reference only, not authoritative
 ├── pyproject.toml
 └── LICENSE
 ```
+
+`exporter.py` and `prompt_builder.py` are deliberately separate modules, not
+one combined "export" feature, because they have different jobs and different
+risk profiles: `exporter.py` is a pure data-formatting concern (low risk,
+same rigor as `reporter.py`); `prompt_builder.py` is the one place in the
+codebase where wording precision is directly load-bearing for the trust model
+(see §5.3), and keeping it isolated makes it easy to review in isolation.
 
 ### Data model
 
@@ -182,53 +192,256 @@ from dataclasses import dataclass
 from enum import Enum
 
 class FindingClass(Enum):
-    FACT = "fact"                # deterministic, mechanically defensible
-    REVIEW = "review"             # heuristic signal, explicitly not a claim
+    FACT = "fact"    # deterministic, mechanically defensible
+    REVIEW = "review" # heuristic signal, explicitly not a claim
 
 @dataclass
 class Finding:
-    detector: str          # e.g. "wrapper", "duplicate_helper_cluster"
+    detector: str          # e.g. "wrapper", "duplicate_helper"
     classification: FindingClass
     file: str
     line: int
-    message: str            # must match the wording rules in each detector spec
-    evidence: dict          # structured, detector-specific supporting data
-                             # (e.g. {"function": "parse_float", "target": "float"}
-                             # or {"cluster": ["safe_float", "parse_float", "ensure_float"]})
+    message: str           # must match wording rules in §6 for the detector
+    evidence: dict         # structured, detector-specific supporting data
+                           # wrapper: {"function": "parse_float", "target": "float"}
+                           # duplicate_helper: {"cluster": ["safe_float", "parse_float"]}
 ```
 
-Every detector returns `list[Finding]`. The reporter is the only thing that
-formats output for display; detectors never format their own strings beyond
-populating `message` and `evidence`. The `classification` field exists so
-that `reporter.py` can visually and structurally separate facts from review
-recommendations in both terminal and JSON output — this separation must be
-visible to the user, not just present in the data model. A user glancing at
-the output should immediately be able to tell which findings are facts and
-which are "go look at this."
+Every detector returns `list[Finding]`. The reporter, exporter, and
+prompt_builder are the only things that format output — detectors never
+format their own strings beyond populating `message` and `evidence`.
 
-### Stack (unchanged)
+### Stack
+
 - Python 3.12+
 - CLI: Typer
 - Parsing: tree-sitter + tree-sitter-python
 - Testing: pytest
-- Formatting/linting: Ruff
-- Packaging: uv
+- Linting: Ruff
+- Packaging: uv / hatchling
 - No database, no web server, no frontend, no LLM dependencies, no embeddings
+
+### Public programmatic API
+
+```python
+from codediet import scan, Finding
+from codediet.models import FindingClass
+
+findings = scan("/path/to/project")
+facts = [f for f in findings if f.classification == FindingClass.FACT]
+```
+
+`scan()` and `Finding` are re-exported from `codediet/__init__.py`.
 
 ---
 
-## 5. Detector Specifications
+## 5. CLI & Output Contract
 
-Each detector below states its purpose, reliability level, false-positive
-risk, and whether its output is a **Fact** or a **Review Recommendation**.
-Reliability levels are not marketing language — they are an honest internal
-classification that should also be communicated to users in documentation.
+### The CLI command
 
-### 5.1 Wrapper Detection
+```bash
+codediet doctor <path>                    # text output
+codediet doctor <path> --json             # JSON output
+codediet doctor <path> --export out.md   # text + write Markdown findings file
+codediet doctor <path> --export out.txt  # text + write plain-text findings file
+codediet doctor <path> --export out.md --prompt  # + append LLM hand-off prompt
+```
+
+**Important:** the CLI command is `codediet doctor <path>`, not
+`codediet <path>`. `doctor` is the Typer subcommand. Running `codediet .`
+directly will fail with "No such command '.'".
+
+### Terminal text output format
+
+```
+Files scanned: 42
+
+FACTS — Mechanically Verifiable (3 found)
+
+  [WRAPPER]
+    utils.py:18
+    parse_float -> float
+
+  [WRAPPER]
+    helpers.py:44
+    file_exists -> os.path.exists
+
+REVIEW RECOMMENDATIONS — Heuristic Signals (0 found)
+  (none)
+```
+
+### JSON output format (`--json`)
+
+```json
+{
+  "facts": [
+    {
+      "detector": "wrapper",
+      "file": "utils.py",
+      "line": 18,
+      "message": "parse_float -> float",
+      "evidence": {
+        "function": "parse_float",
+        "target": "float"
+      }
+    }
+  ],
+  "review_recommendations": []
+}
+```
+
+No scores. No percentages. No rankings. No suggestions in any output — ever.
+
+---
+
+## 6. New in v0.3: Findings Export & LLM Hand-off Prompt
+
+### 6.1 `--export` flag
+
+```bash
+codediet doctor . --export findings.md
+```
+
+Writes a Markdown file containing every finding from the run, grouped by
+classification (Fact / Review), with file:line references identical to
+terminal output. If no findings exist, the file still gets written, stating
+plainly that no findings were detected — never silently skip the file, since
+an empty result is itself useful information (a clean run is worth confirming
+in writing, e.g. for a PR comment or changelog).
+
+Plain text mode (`--export findings.txt`) produces the same content without
+Markdown formatting, for users piping into other tooling.
+
+### 6.2 Export file structure
+
+```markdown
+# CodeDiet Findings — <repo name or path>
+Generated: <ISO timestamp>
+Detector(s) run: wrapper
+
+## Facts
+(deterministic — these are structurally true as written)
+
+### Wrapper
+- `utils.py:18` — parse_float -> float
+- `helpers.py:44` — file_exists -> os.path.exists
+
+## Review Recommendations
+(heuristic signals — worth a look, not a claim about the outcome)
+
+_None in this run._
+
+---
+## Summary
+- 2 Facts
+- 0 Review Recommendations
+- 42 files scanned
+```
+
+Notes on this structure:
+- Facts and Review Recommendations are **always** rendered as separate
+  sections, never merged into one flat list — this mirrors the terminal/JSON
+  separation and is non-negotiable.
+- The summary counts are descriptive only. No score, no percentage.
+- If a Review section has no findings, say so explicitly ("None in this
+  run") rather than omitting the section.
+
+### 6.3 `--prompt` flag
+
+```bash
+codediet doctor . --export findings.md --prompt
+```
+
+Adds a final section to the same export file: a single, ready-to-copy prompt
+intended for the user's own LLM-based coding assistant, built only from the
+findings already present in the file. `--prompt` has no effect without
+`--export` — there is no reason to generate a hand-off prompt the user can't
+also see the underlying evidence for.
+
+### 6.4 The generated prompt — the part that needs the most care
+
+This is the highest-risk addition in v0.3, not because it's technically
+hard, but because a poorly worded prompt could cause an LLM to treat a
+Review-class finding as a confirmed problem and "fix" something CodeDiet
+never claimed was broken. The prompt template must structurally prevent
+this.
+
+**Required properties of the prompt template (enforced by tests):**
+
+- It must explicitly state that CodeDiet performed read-only static analysis
+  and made no changes, and that the findings are a mix of structural facts
+  and heuristic review flags — and it must say which is which for every
+  single item.
+- Facts and Review Recommendations must be in visually distinct sections in
+  the prompt. Never flatten them into one combined list.
+- For Fact-class findings, the prompt may ask the LLM to take direct action
+  (e.g., "consider whether it can be inlined or removed").
+- For Review-class findings, the prompt must ask the LLM to *investigate and
+  report back*, not to act. The difference between "review and report" and
+  "go ahead and fix" is the entire safety mechanism here.
+- The prompt must never use the words "duplicate," "dead," "unused,"
+  "unsafe," or "delete" for any Review-class finding — only the exact
+  sanctioned wording from each detector's spec (e.g., "Review Cluster,"
+  "Potentially Superseded Implementation," "Possibly Unused Function").
+- The prompt must close by asking the LLM to summarize what it would change
+  and why, *before* making changes.
+- The prompt must contain no provider-specific syntax (no @mentions, no
+  slash commands) — it must work verbatim in Claude, GPT, Gemini, or any
+  other tool.
+
+**Example shape:**
+
+```text
+The following is output from CodeDiet, a read-only static analysis tool.
+CodeDiet made no changes to this codebase. It performed purely structural,
+deterministic static analysis — no LLMs, no embeddings, no probabilistic
+inference of any kind was used to produce these findings.
+
+Findings are split into two categories. Please treat them differently:
+
+FACTS (structurally confirmed — true as written, by construction):
+- utils.py:18 — `parse_float` is a pure pass-through wrapper around `float`.
+  Consider whether it can be inlined or removed.
+
+REVIEW RECOMMENDATIONS (heuristic signals — investigate before acting,
+do not assume these are confirmed issues):
+- helpers.py:5 — Review Cluster: `safe_float`, `parse_float`, `ensure_float`
+  share a naming pattern and overlapping signatures. Please review whether
+  they are genuinely redundant before proposing any change.
+
+For FACTS, you may propose a direct fix (for example, inlining a pure
+pass-through wrapper) if it is appropriate for the context.
+
+For REVIEW RECOMMENDATIONS, please investigate first and report back what
+you find — do not modify code based on these signals alone.
+
+Please summarize your proposed plan before making any edits.
+```
+
+This template lives in `prompt_builder.py`. Tests in `test_prompt_builder.py`
+mechanically assert that no Review-class finding's rendered text ever contains
+action-implying verbs — this is the backstop against the highest-consequence
+failure mode in this feature.
+
+### 6.5 What this feature explicitly does NOT do
+
+- It does not call any LLM. Ever.
+- It does not choose or assume which LLM/tool the user is using.
+- It does not track whether the user actually used the prompt, or any outcome.
+- It does not change detection logic, reliability tiers, or default-on/off
+  behavior for any detector.
+
+---
+
+## 7. Detector Specifications
+
+Each detector states its purpose, reliability level, false-positive risk,
+and whether its output is a **Fact** or a **Review Recommendation**.
+
+### 7.1 Wrapper Detection
 **Status:** Shipped (v0.1), carried forward unchanged.
 **Reliability:** High.
-**False positive risk:** Near zero, by construction — this is a pure
-structural/geometric AST check, not a heuristic.
+**False positive risk:** Near zero — this is a pure structural AST check.
 **Output class:** Fact.
 
 Detects functions whose entire body is a single pass-through call to another
@@ -240,26 +453,28 @@ def parse_float(x):
     return float(x)
 ```
 
-Detection requirements (unchanged from v0.1): exactly one statement in the
-body; that statement is a `Return`; the return value is a `Call`; arguments
-are forwarded unchanged. Any ambiguity means do not flag. This detector's
-job is to remain the proof that a CodeDiet finding can be a Fact — its
-standards should not be loosened to catch more cases.
+Detection requirements (all must hold — if any ambiguity, do NOT flag):
+- Function body contains **exactly one statement**
+- That statement is a `Return`
+- The return value is a `Call` with a simple target (identifier or attribute
+  chain — no method chains, no subscripts)
+- Arguments are forwarded unchanged (same names, same order, or clean
+  `*args`/`**kwargs` passthrough)
+- No branching, no transformations, no side effects anywhere in the body
 
-### 5.2 Duplicate Helper Detection
-**Status:** Roadmap (not implemented in v0.2 code — see §7 for what v0.2
-actually ships).
+This detector's job is to remain the proof that a CodeDiet finding can be a
+Fact. Its standards must not be loosened to catch more cases.
+
+### 7.2 Duplicate Helper Detection
+**Status:** Roadmap (not implemented — see §8 for what v0.3 ships).
 **Reliability:** Medium.
-**False positive risk:** Real and expected — this is why output is
-permanently constrained to review language.
-**Output class:** Review Recommendation, always. This detector must never
-graduate to Fact-level claims, in this version or any future version — see
-§2 on why some detectors are heuristic by nature.
+**False positive risk:** Real and expected — output is permanently constrained
+to review language.
+**Output class:** Review Recommendation, always. Must never graduate to
+Fact-level claims.
 
 Goal: find functions with similar names, similar signatures, and similar
-implementation structure — the AI-generated equivalent of reinventing the
-same helper under three names because the model had no visibility into
-functions written under a different prompt.
+implementation structure.
 
 ```python
 safe_float()
@@ -268,20 +483,16 @@ ensure_float()
 ```
 
 Output wording: **"Review Cluster"** — never "duplicate," never "these do the
-same thing." The detector reports that a naming-and-signature pattern exists
-across N functions; it makes no claim about what inspection will reveal.
+same thing."
 
-### 5.3 Abandoned Implementation Detection
+### 7.3 Abandoned Implementation Detection
 **Status:** Roadmap.
 **Reliability:** Medium.
-**False positive risk:** Moderate — versioned function/file names are
-sometimes intentional (e.g., genuine API versioning), so this detector will
-occasionally flag legitimate patterns.
+**False positive risk:** Moderate.
 **Output class:** Review Recommendation, always.
 
 Goal: detect likely-superseded implementations left behind after iterative
-AI-assisted development — a pattern that's extremely common in practice
-(prompt, regenerate, prompt again, never delete the first attempt).
+AI-assisted development.
 
 ```python
 search()
@@ -289,97 +500,39 @@ search_v2()
 search_new()
 search_final()
 ```
-or
-```python
-old_pipeline()
-new_pipeline()
-```
 
 Output wording: **"Potentially Superseded Implementation"** — never "delete
 the old one," never "this is dead."
 
-### 5.4 Dead Function Detection
-**Status:** Roadmap. If implemented, must ship default-OFF (opt-in flag),
-consistent with the v0.1-era decision to gate this specific detector — that
-reasoning still applies and is restated here because it's easy to lose track
-of across version boundaries.
+### 7.4 Dead Function Detection
+**Status:** Roadmap. Must ship default-OFF (opt-in flag).
 **Reliability:** Medium.
-**False positive risk:** High without mitigation — this is empirically the
-worst-behaved category of static check in this entire space. The mature
-incumbent Python dead-code tool (Vulture) produces roughly 14 false positives
-for every genuine finding on real popular repositories, almost entirely from
-framework decorators and dynamic dispatch (Flask routes, FastAPI/Pydantic
-models, pytest fixtures, dependency injection, plugin/registry patterns) that
-static analysis cannot see.
+**False positive risk:** High without mitigation (framework decorators,
+dynamic dispatch, pytest fixtures, DI patterns).
 **Output class:** Review Recommendation, always.
-
-Detects functions with no static references anywhere in the traced call
-graph. Must ship with explicit, prominent warnings — in both the CLI output
-and documentation — about dynamic dispatch, dependency injection, reflection,
-and plugin systems as known blind spots. If implemented, the mechanism should
-prefer BFS reachability from configurable entry points (`__main__.py`,
-`app.py`, package `__init__.py`) over attempting to resolve individual
-dynamic calls, plus pre-baked exclusion rules for at minimum Flask,
-FastAPI/Pydantic, Django, and pytest.
 
 Output wording: **"Possibly Unused Function"** — never **"Safe to delete."**
-That exact phrase is forbidden; it is the single clearest way this detector
-could violate the trust model if implemented carelessly.
+That exact phrase is permanently forbidden.
 
-### 5.5 Similar Module Detection
+### 7.5 Similar Module Detection
 **Status:** Roadmap.
 **Reliability:** Medium-Low.
-**False positive risk:** Significant — structural overlap between files is a
-weak signal on its own and needs care to avoid flagging legitimately
-parallel code (e.g., two services that are similar by design, not by
-accident).
+**False positive risk:** Significant.
 **Output class:** Review Recommendation, always.
-
-Detects files with unusually high structural overlap — the file-level
-equivalent of §5.2, often produced when an AI assistant is asked to "do the
-same thing but for X" and regenerates a near-copy rather than
-parameterizing the original.
-
-```text
-user_service.py
-user_service_v2.py
-```
 
 Output wording: **"Review Similar Modules."**
 
-### 5.6 Utility Explosion Detection
+### 7.6 Utility Explosion Detection
 **Status:** Roadmap.
-**Reliability:** Low. This detector should be documented to users explicitly
-as a heuristic-only signal, with lower confidence than every other detector
-in this document.
-**False positive risk:** High in absolute terms, but low-stakes in
-consequence — it flags a project-level pattern, not a specific function or
-line, so a wrong flag costs a developer a quick glance rather than chasing
-a misleading specific claim.
-**Output class:** Review Recommendation, always — and should be visually/
-textually distinguished even from the other review-level detectors as the
-*least* confident finding type CodeDiet produces.
-
-Goal: identify projects accumulating an unusually large number of
-helper/utility modules and small helper functions — a project-level smell
-rather than a function-level one.
-
-```text
-helpers.py
-utils.py
-common.py
-shared.py
-misc.py
-```
+**Reliability:** Low (documented to users explicitly as lowest-confidence).
+**False positive risk:** High in absolute terms.
+**Output class:** Review Recommendation, always.
 
 Output wording: **"Review Utility Growth."**
 
 ---
 
-## 6. Reliability Model
-
-Every detector in this project sits on a single honesty spectrum, and that
-spectrum — not feature count — is what CodeDiet is actually selling.
+## 8. Reliability Model
 
 | Detector | Reliability | Output Class |
 |---|---|---|
@@ -390,127 +543,88 @@ spectrum — not feature count — is what CodeDiet is actually selling.
 | Similar Module Detection | Medium-Low | Review |
 | Utility Explosion Detection | Low | Review |
 
-Two rules govern this table permanently:
+Two permanent rules:
 
 1. **A detector's reliability tier is a property of the underlying technique,
    not of implementation effort.** You cannot raise "Duplicate Helper
-   Detection" from Medium to High reliability by writing better code — name
-   and signature similarity is inherently a heuristic, no matter how
-   carefully implemented. If a future contributor believes a detector should
-   move tiers, that's a claim about the *technique* changing (e.g., adding a
-   fundamentally different verification step), not about polish.
+   Detection" from Medium to High by writing better code.
 2. **Output class tracks reliability, not ambition.** Nothing below "High"
-   reliability is permitted to produce Fact-class output, ever. This is the
-   mechanism that keeps the whole product honest as it grows — it is much
-   easier to accidentally let a Medium-reliability detector's wording drift
-   toward fact-like certainty over many small copy edits than to make that
-   mistake in one big decision. Review every detector's exact output strings
-   against this table before any release.
-
-This is also why CodeDiet refuses composite scores (§3): collapsing six
-detectors of wildly different reliability into one number necessarily hides
-exactly the information this table exists to surface. A single "Bloat Score"
-would average away the difference between a Fact and a Low-confidence
-heuristic, which is the opposite of what this project is for.
+   reliability is permitted to produce Fact-class output, ever.
 
 ---
 
-## 7. Roadmap
+## 9. Roadmap
 
-This section exists to separate **what v0.2 documents** from **what v0.2
-ships in code**. Do not conflate the two — the detector specifications in §5
-describe the full intended product surface, but most of them are not yet
-implemented.
+### What v0.3 ships in code
+- Wrapper Detection (§7.1) — unchanged, carried forward from v0.1/v0.2
+- `exporter.py` — writes Markdown/text findings file via `--export`
+- `prompt_builder.py` — assembles LLM hand-off prompt via `--prompt`
+- Tests: `test_exporter.py` and `test_prompt_builder.py` (including mechanical
+  safety-invariant tests on prompt wording, per §6.4)
 
-### What v0.2 actually ships in code
-- Wrapper Detection (§5.1) — unchanged, carried forward from v0.1
-- Updated `Finding` data model with `classification` (Fact / Review) — this
-  is a real v0.2 deliverable even though it has no user-visible detector
-  attached to it yet beyond wrapper detection
-- Reporter updates so the Fact/Review distinction is visible in both
-  terminal and JSON output
-- This document, repositioning the product and specifying the roadmap
-
-### What v0.2 documents but does NOT implement
-Sections 5.2 through 5.6 in full. These are real, considered designs — not
+### What v0.3 documents but does NOT implement
+Sections 7.2 through 7.6 in full. These are real, considered designs — not
 placeholders — but implementing them is future work, one detector at a time,
 each validated against real repositories for false-positive rate before
-being considered done. Do not build more than one new detector in a single
-work session without an explicit decision to do so; this project's core risk
-is scope creep happening faster than validation can keep up.
+being considered done.
 
 ### Suggested implementation order for future versions
-Order roughly follows §6's reliability table, highest-confidence first,
-since each shipped detector should reinforce trust before a less certain one
-is introduced:
-1. Duplicate Helper Detection (name/signature pattern matching — no
-   execution analysis needed, relatively contained scope)
-2. Abandoned Implementation Detection (name-pattern based, similar
-   implementation complexity to #1)
-3. Similar Module Detection (requires file-level structural comparison,
-   meaningfully more implementation complexity than #1/#2)
-4. Utility Explosion Detection (project-level heuristic, low implementation
-   complexity but needs careful calibration to avoid being noise by default)
-5. Dead Function Detection (highest implementation complexity due to
-   required framework whitelisting and BFS reachability machinery; highest
-   false-positive risk without that machinery; ship last and default-OFF)
+1. Duplicate Helper Detection (name/signature pattern matching — most contained)
+2. Abandoned Implementation Detection (similar implementation complexity)
+3. Similar Module Detection (requires file-level structural comparison)
+4. Utility Explosion Detection (project-level heuristic, needs calibration)
+5. Dead Function Detection (highest complexity + highest FP risk; ship last,
+   default-OFF)
 
-This order is a recommendation, not a hard rule — but any deviation should be
-a deliberate decision, not an accident of what seemed easiest that day.
+The "think big" direction considered before v0.3 — multi-language support,
+CI/GitHub Action delivery, broader distribution — remains a reasonable future
+direction, but only once at least one more detector ships from the roadmap
+above and the export/prompt workflow proves genuinely useful in practice.
 
 ---
 
-## 8. Development Rules
+## 10. Development Rules
 
+All v0.2 rules carry forward:
 - **One detector at a time.** Each new detector is validated against real,
   popular open-source repositories for false-positive rate before being
-  considered shippable — hand-written test fixtures alone are not
-  sufficient evidence of real-world reliability.
-- **Negative test cases are mandatory, not optional.** For every detector,
-  write deliberate near-miss tests that confirm the detector does *not* fire
-  — e.g., for duplicate helper detection, two functions with similar names
-  but genuinely different logic should not cluster together.
-- **Output wording is reviewed against §5 and §6 on every change.** Any pull
-  request that touches a detector's output strings must be checked against
-  the exact forbidden/required phrasing in that detector's spec. "Safe to
-  delete," "this is unnecessary," "duplicate," and similar certainty-
-  implying language are bugs, not style preferences, when attached to a
-  Review-class detector.
+  considered shippable — hand-written test fixtures alone are not sufficient.
+- **Negative test cases are mandatory.** For every detector, write deliberate
+  near-miss tests that confirm the detector does *not* fire.
+- **Output wording is reviewed against §7 on every change.** "Safe to
+  delete," "this is unnecessary," "duplicate," and similar certainty-implying
+  language are bugs, not style preferences, when attached to a Review-class
+  detector.
 - **No detector ships enabled by default unless its reliability tier is
-  High.** Currently this means only Wrapper Detection is on by default,
-  permanently, until another detector's technique (not just its
-  implementation) earns High reliability.
-- **Resist scope creep explicitly.** If a session's stated goal is one
-  detector, finishing early is not an invitation to start the next one. Flag
-  it as available capacity and ask, rather than proceeding silently — this
-  project's v0.1-to-v0.2 transition happened because of a real, validated
-  finding, not because of an unplanned feature addition, and that discipline
-  is the reason this document still has the room to evolve carefully.
-- **The Fact/Review distinction is a user-facing contract, not an internal
-  note.** If a refactor of `reporter.py` or `models.py` would make that
-  distinction less visible in actual CLI/JSON output, that refactor needs to
-  be reconsidered, not just shipped because it's cleaner code.
+  High.** Currently only Wrapper Detection.
+- **Resist scope creep explicitly.**
+
+**New for v0.3:** any change to `prompt_builder.py` requires re-reading §6.4
+in full before merging. This is the one file in the project where wording
+choices have a direct, mechanical path to causing an LLM to take an
+unwarranted action on a user's codebase. Treat changes here with the same
+scrutiny as changes to detector logic itself, not as copywriting.
 
 ---
 
-## 9. Success Criteria
+## 11. Success Criteria
 
-v0.2 is successful if:
+v0.3 is successful if:
 
-- Wrapper Detection continues to work exactly as it did in v0.1, with no
-  regression in precision.
-- The `Finding` data model and reporter changes ship, with the Fact/Review
-  distinction clearly visible to users in both terminal and JSON output.
-- This document accurately reflects the full intended detector roadmap, such
-  that any future contributor — human or Claude — can pick up the next
-  detector from §7 without needing to re-derive its design from scratch.
-- No detector in the shipped product makes a claim stronger than its
-  reliability tier justifies.
-- The project's repositioning from "wrapper tool" to "AI code bloat
-  detector" is reflected honestly — meaning the README and any public-facing
-  copy describe the roadmap as a roadmap, not as shipped capability, until
-  each detector is actually implemented and validated.
+- `codediet doctor <path>` continues to work exactly as in v0.2, with no
+  regression in detection precision.
+- `--export` produces a clean, accurate Markdown/text file matching §6.2,
+  with Facts and Review Recommendations always visually separated.
+- `--prompt` produces a prompt that a developer could paste into any major
+  LLM coding assistant and get a sensible, safe response — one that
+  investigates Review-class findings rather than blindly acting on them.
+- `test_prompt_builder.py` mechanically verifies no action-implying language
+  appears attached to any Review-class finding in the generated prompt.
+- Nothing about detection logic, reliability tiers, or default-on/off
+  behavior changed from v0.2 — v0.3 is purely a usability layer.
+- The project has not quietly become an "LLM integration" in positioning or
+  in code, despite now producing LLM-facing output.
+- All 105+ tests pass: `uv run pytest tests/ -v`
 
 Trust, precision, explainability, and evidence — in that order — remain the
-measure of whether this project is working, not feature count and not how
-many detectors are documented in this file.
+measure of whether this project is working, not feature count.

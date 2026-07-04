@@ -3,19 +3,27 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 
 from codediet.api import scan
+from codediet.exporter import export_findings
 from codediet.parser import walk_python_files
+from codediet.prompt_builder import build_prompt
 from codediet.reporter import report_json, report_text
 
 app = typer.Typer(
     name="codediet",
     help="Put AI-generated code on a diet. Detects structural bloat in Python codebases.",
     add_completion=False,
-    invoke_without_command=True,
 )
+
+
+@app.callback()
+def callback() -> None:
+    """Put AI-generated code on a diet. Detects structural bloat in Python codebases."""
+    pass
 
 
 @app.command()
@@ -30,6 +38,25 @@ def doctor(
         "--json",
         help="Output findings as JSON instead of plain text.",
     ),
+    export: Optional[Path] = typer.Option(
+        None,
+        "--export",
+        help=(
+            "Write findings to a file.  Extension determines format: "
+            ".md for Markdown, anything else for plain text.  "
+            "Always written even when there are no findings."
+        ),
+        writable=True,
+        resolve_path=True,
+    ),
+    prompt: bool = typer.Option(
+        False,
+        "--prompt",
+        help=(
+            "Append a ready-to-copy LLM hand-off prompt to the export file.  "
+            "Has no effect without --export."
+        ),
+    ),
 ) -> None:
     """Scan PATH for structural code bloat."""
     if path.is_file():
@@ -39,12 +66,34 @@ def doctor(
 
     all_findings = scan(path)
 
+    # ── Terminal output ───────────────────────────────────────────────────────
     if json:
         report_json(all_findings)
     else:
         report_text(all_findings, num_files)
 
+    # ── File export (optional) ────────────────────────────────────────────────
+    if export is not None:
+        prompt_text: str | None = None
+        if prompt:
+            prompt_text = build_prompt(all_findings)
+
+        export_findings(
+            findings=all_findings,
+            output_path=export,
+            repo_path=path,
+            files_scanned=num_files,
+            prompt_text=prompt_text,
+        )
+
+        typer.echo(f"\nFindings written to: {export}", err=True)
+        if prompt:
+            typer.echo("LLM hand-off prompt appended.", err=True)
+    elif prompt:
+        typer.echo(
+            "Warning: --prompt has no effect without --export.", err=True
+        )
+
 
 def main() -> None:
     app()
-
